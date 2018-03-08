@@ -125,9 +125,15 @@ def main(unused_argv):
     emb_matrix, word2id, id2word = get_glove(FLAGS.glove_path, FLAGS.embedding_size)
 
     # Get filepaths to train/dev datafiles for tokenized queries, contexts and answers
-    train_context_path = os.path.join(FLAGS.data_dir, "train.context")
+
+    #IF IN EARLY TRAINING:
+    train_context_path = os.path.join(FLAGS.data_dir, "mini-train.context")
+    train_qn_path = os.path.join(FLAGS.data_dir, "mini-train.question")
+    train_ans_path = os.path.join(FLAGS.data_dir, "mini-train.span")
+    #ELSE, USE FULL DATA:
+    '''train_context_path = os.path.join(FLAGS.data_dir, "train.context")
     train_qn_path = os.path.join(FLAGS.data_dir, "train.question")
-    train_ans_path = os.path.join(FLAGS.data_dir, "train.span")
+    train_ans_path = os.path.join(FLAGS.data_dir, "train.span")'''
     dev_context_path = os.path.join(FLAGS.data_dir, "dev.context")
     dev_qn_path = os.path.join(FLAGS.data_dir, "dev.question")
     dev_ans_path = os.path.join(FLAGS.data_dir, "dev.span")

@@ -159,6 +159,20 @@ class BasicAttn(object):
             This is the attention output; the weighted sum of the values
             (using the attention distribution as weights).
         """
+
+        '''
+        Keys = context hidden states
+        Values = question hidden states
+        BiDirectional Attention Flow:
+            First, compute similarity matrix S
+                Adds a new weight variable
+
+            C2Q Attention:
+                Row-wise softmax of S to get alpha(i) for i between 1 and N
+                attention(i) = sum over j from 1 to m (alpha j i * q j) for i between 1 and N
+            Q2C Attention:
+                
+        '''
         with vs.variable_scope("BasicAttn"):
 
             # Calculate attention distribution
