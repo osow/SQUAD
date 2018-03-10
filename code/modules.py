@@ -219,7 +219,8 @@ class BasicAttn(object):
             cell = tf.contrib.rnn.LSTMCell(num_units)
             (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(cell,cell,inputs = lstm_input,dtype = tf.float32)
             out = tf.concat([fw_out, bw_out], 2)
-            return out
+            output = tf.nn.dropout(out, self.keep_prob)
+            return output
             '''similarity_list = []
             for i in range(M):
                 print "i %d" % i
