@@ -129,7 +129,7 @@ class BasicAttn(object):
     module with other inputs.
     """
 
-    def __init__(self, keep_prob, key_vec_size, value_vec_size):
+    def __init__(self, keep_prob, key_vec_size, value_vec_size,batch_size,hidden_size):
         """
         Inputs:
           keep_prob: tensor containing a single scalar that is the keep probability (for dropout)
@@ -139,6 +139,8 @@ class BasicAttn(object):
         self.keep_prob = keep_prob
         self.key_vec_size = key_vec_size
         self.value_vec_size = value_vec_size
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
 
     def build_graph(self, values, values_mask, keys):
         """
@@ -163,21 +165,91 @@ class BasicAttn(object):
         '''
         Keys = context hidden states
         Values = question hidden states
-        BiDirectional Attention Flow:
-            First, compute similarity matrix S
-                Adds a new weight variable
-
-            C2Q Attention:
-                Row-wise softmax of S to get alpha(i) for i between 1 and N
-                attention(i) = sum over j from 1 to m (alpha j i * q j) for i between 1 and N
-            Q2C Attention:
                 
         '''
         with vs.variable_scope("BasicAttn"):
 
             # Calculate attention distribution
-            values_t = tf.transpose(values, perm=[0, 2, 1]) # (batch_size, value_vec_size, num_values)
-            attn_logits = tf.matmul(keys, values_t) # shape (batch_size, num_keys, num_values)
+            sentinel_context = tf.get_variable("senc",shape = [1,self.key_vec_size],initializer = tf.contrib.layers.xavier_initializer())
+            sentinel_context = tf.tile(sentinel_context,[tf.shape(values)[0],1])#tf.reshape(sentinel_context,[tf.shape(values)[0],1,self.key_vec_size])
+            sentinel_context = tf.expand_dims(sentinel_context, 1)
+            sentinel_question = tf.get_variable("senq",shape = [1,self.value_vec_size],initializer = tf.contrib.layers.xavier_initializer())
+            sentinel_question = tf.tile(sentinel_question,[tf.shape(values)[0],1])#tf.reshape(sentinel_context,[tf.shape(values)[0],1,self.key_vec_size])
+            sentinel_question = tf.expand_dims(sentinel_question, 1)
+            sentinel_mask = tf.constant(0,shape=[1])
+            sentinel_mask = tf.tile(sentinel_mask,[tf.shape(values)[0]])#tf.reshape(sentinel_context,[tf.shape(values)[0],1,self.key_vec_size])
+            sentinel_mask = tf.expand_dims(sentinel_mask, 1)
+            #sentinel_mask = tf.reshape(sentinel_mask,[tf.shape(values)[0],1])
+
+            full_mask = tf.concat([values_mask,sentinel_mask],1)
+            full_values = tf.concat([values,sentinel_question],1)
+            full_keys = tf.concat([keys,sentinel_context],1)
+            
+            values_t = tf.transpose(full_values, perm=[0, 2, 1]) # (batch_size, value_vec_size, num_values+1)
+            keys_t = tf.transpose(full_keys, perm=[0, 2, 1])
+
+            M = full_values.get_shape()[1]
+            N = full_keys.get_shape()[1]
+            #similarity_matrix = tf.get_variable("sim",shape = [values.get_shape()[1],keys.get_shape()[1]], initializer = tf.zeros_initializer())
+            #w_sim = tf.get_variable("w_sim",shape = [3*self.key_vec_size,1], initializer = tf.contrib.layers.xavier_initializer())
+            
+            #Keys = context hidden states
+            #Values = question hidden states
+            #M = 31 = num values (questions)
+            #N = 601 = num keys (contexts)
+            W = tf.get_variable("W",shape = [1,M,M], initializer = tf.contrib.layers.xavier_initializer())
+            W = tf.tile(W,[tf.shape(values)[0],1,1])
+            b = tf.get_variable("b",shape = [1,self.key_vec_size],initializer = tf.contrib.layers.xavier_initializer())
+            pt1 = tf.matmul(W,full_values)
+            pt2 = pt1 + b
+            values_nonlinear = tf.tanh(pt2)
+            values_nonlinear_t = tf.transpose(values_nonlinear, perm=[0, 2, 1])
+            affinity = tf.matmul(full_keys,values_nonlinear_t) #shape (batch_size,N+1,M+1)
+            full_mask = tf.expand_dims(full_mask, 1) # shape (batch_size, 1, M+1)
+            _, alpha_dist = masked_softmax(affinity, full_mask, 1) #shape (batch,N+1,M+1)
+            a_output = tf.matmul(alpha_dist,values_nonlinear)
+            beta_dist = tf.nn.softmax(affinity,2)
+            beta_dist_t = tf.transpose(beta_dist, perm=[0, 2, 1])
+            b_output = tf.matmul(beta_dist_t,full_keys)
+            s_output = tf.matmul(alpha_dist,b_output)
+
+            s_a = tf.concat([s_output[:,:-1,:],a_output[:,:-1,:]],2)
+            lstm_input = s_a#tf.unstack(s_a,axis = 2)
+            num_units = self.hidden_size
+            cell = tf.contrib.rnn.LSTMCell(num_units)
+            (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(cell,cell,inputs = lstm_input,dtype = tf.float32)
+            out = tf.concat([fw_out, bw_out], 2)
+            return out
+            '''similarity_list = []
+            for i in range(M):
+                print "i %d" % i
+                row_list = []
+                for j in range(N):
+                    print "j %d" % j
+                    a = tf.matmul(values_t[:,:,i],w_sim[:self.key_vec_size,:])
+                    b = tf.matmul(keys_t[:,:,j],w_sim[self.key_vec_size:2*self.key_vec_size,:])
+                    CQ = tf.multiply(keys[:,j,:],values[:,i,:])
+                    c = tf.matmul(CQ,w_sim[2*self.key_vec_size:,:])
+                    row_list.append(a + b + c)
+                similarity_list.append(row_list)
+            similarity_matrix = tf.stack(similarity_list)
+            print similarity_matrix.get_shape()
+            
+            w_sim = tf.reshape(w_sim, [tf.shape(values)[0],3*self.key_vec_size,1])
+            print keys.get_shape()
+            print values.get_shape()
+            print w_sim.get_shape()
+            a = tf.matmul(keys,w_sim[:,:self.key_vec_size,:])
+            b = tf.matmul(values,w_sim[:,self.key_vec_size:2*self.key_vec_size,:])
+            #CQ = tf.multiply(keys,values_t)
+            #CQ_t = tf.transpose(CQ, perm=[0, 2, 1])
+            #c = tf.matmul(CQ,w_sim[2*self.key_vec_size:,:])
+            print a.get_shape()
+            print b.get_shape()
+            print c.get_shape()'''
+
+            #BASELINE
+            '''attn_logits = tf.matmul(keys, values_t) # shape (batch_size, num_keys, num_values)          
             attn_logits_mask = tf.expand_dims(values_mask, 1) # shape (batch_size, 1, num_values)
             _, attn_dist = masked_softmax(attn_logits, attn_logits_mask, 2) # shape (batch_size, num_keys, num_values). take softmax over values
 
@@ -187,7 +259,7 @@ class BasicAttn(object):
             # Apply dropout
             output = tf.nn.dropout(output, self.keep_prob)
 
-            return attn_dist, output
+            return attn_dist, output'''
 
 
 def masked_softmax(logits, mask, dim):

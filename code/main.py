@@ -127,9 +127,9 @@ def main(unused_argv):
     # Get filepaths to train/dev datafiles for tokenized queries, contexts and answers
 
     #IF IN EARLY TRAINING:
-    train_context_path = os.path.join(FLAGS.data_dir, "mini-train.context")
-    train_qn_path = os.path.join(FLAGS.data_dir, "mini-train.question")
-    train_ans_path = os.path.join(FLAGS.data_dir, "mini-train.span")
+    train_context_path = os.path.join(FLAGS.data_dir, "train.context")
+    train_qn_path = os.path.join(FLAGS.data_dir, "train.question")
+    train_ans_path = os.path.join(FLAGS.data_dir, "train.span")
     #ELSE, USE FULL DATA:
     '''train_context_path = os.path.join(FLAGS.data_dir, "train.context")
     train_qn_path = os.path.join(FLAGS.data_dir, "train.question")
