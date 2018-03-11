@@ -129,7 +129,7 @@ def main(unused_argv):
     #IF IN EARLY TRAINING:
     train_context_path = os.path.join(FLAGS.data_dir, "mini-train.context")
     train_qn_path = os.path.join(FLAGS.data_dir, "mini-train.question")
-    train_ans_path = os.path.join(FLAGS.data_dir, "minitrain.span")
+    train_ans_path = os.path.join(FLAGS.data_dir, "mini-train.span")
     #ELSE, USE FULL DATA:
     '''train_context_path = os.path.join(FLAGS.data_dir, "train.context")
     train_qn_path = os.path.join(FLAGS.data_dir, "train.question")
