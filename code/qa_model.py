@@ -137,7 +137,7 @@ class QAModel(object):
         # Use context hidden states to attend to question hidden states
         attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2,self.FLAGS.batch_size,self.FLAGS.hidden_size)
         attn_output = attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens) # attn_output is shape (batch_size, context_len, hidden_size*2)
-
+        self.attn_dist = attn_output
         # Concat attn_output to context_hiddens to get blended_reps
         blended_reps = tf.concat([context_hiddens, attn_output], axis=2) # (batch_size, context_len, hidden_size*4)
 
@@ -277,8 +277,8 @@ class QAModel(object):
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
 
         output_feed = [self.probdist_start, self.probdist_end]
-        [probdist_start, probdist_end] = session.run(output_feed, input_feed)
-        return probdist_start, probdist_end
+        [probdist_start, probdist_end,attn_dist] = session.run(output_feed, input_feed)
+        return probdist_start, probdist_end, attn_dist
 
 
     def get_start_end_pos(self, session, batch):
@@ -294,13 +294,13 @@ class QAModel(object):
             The most likely start and end positions for each example in the batch.
         """
         # Get start_dist and end_dist, both shape (batch_size, context_len)
-        start_dist, end_dist = self.get_prob_dists(session, batch)
+        start_dist, end_dist, attn_dist = self.get_prob_dists(session, batch)
 
         # Take argmax to get start_pos and end_post, both shape (batch_size)
         start_pos = np.argmax(start_dist, axis=1)
         end_pos = np.argmax(end_dist, axis=1)
 
-        return start_pos, end_pos
+        return start_pos, end_pos, attn_dist
 
 
     def get_dev_loss(self, session, dev_context_path, dev_qn_path, dev_ans_path):
@@ -380,13 +380,13 @@ class QAModel(object):
         # That means we're truncating, rather than discarding, examples with too-long context or questions
         for batch in get_batch_generator(self.word2id, context_path, qn_path, ans_path, self.FLAGS.batch_size, context_len=self.FLAGS.context_len, question_len=self.FLAGS.question_len, discard_long=False):
 
-            pred_start_pos, pred_end_pos = self.get_start_end_pos(session, batch)
+            pred_start_pos, pred_end_pos, attn_dist = self.get_start_end_pos(session, batch)
 
             # Convert the start and end positions to lists length batch_size
             pred_start_pos = pred_start_pos.tolist() # list length batch_size
             pred_end_pos = pred_end_pos.tolist() # list length batch_size
 
-            for ex_idx, (pred_ans_start, pred_ans_end, true_ans_tokens) in enumerate(zip(pred_start_pos, pred_end_pos, batch.ans_tokens)):
+            for ex_idx, (pred_ans_start, pred_ans_end, true_ans_tokens,attn) in enumerate(zip(pred_start_pos, pred_end_pos, batch.ans_tokens,attn_dist)):
                 example_num += 1
 
                 # Get the predicted answer
@@ -406,6 +406,7 @@ class QAModel(object):
 
                 # Optionally pretty-print
                 if print_to_screen:
+                    print attn
                     print_example(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
 
                 if num_samples != 0 and example_num >= num_samples:
