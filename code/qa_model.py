@@ -276,8 +276,8 @@ class QAModel(object):
         input_feed[self.qn_mask] = batch.qn_mask
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
 
-        output_feed = [self.probdist_start, self.probdist_end]
-        [probdist_start, probdist_end,attn_dist] = session.run(output_feed, input_feed)
+        output_feed = [self.probdist_start, self.probdist_end,self.attn_dist]
+        [probdist_start, probdist_end, attn_dist] = session.run(output_feed, input_feed)
         return probdist_start, probdist_end, attn_dist
 
 
