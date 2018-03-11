@@ -408,8 +408,10 @@ class QAModel(object):
                 # Optionally pretty-print
                 if print_to_screen:
                     print "A_DIST"
+                    print a_dis.get_shape()
                     print a_dis
-                    print "S_DIST"
+                    print "B_DIST"
+                    print s_dis.get_shape()
                     print s_dis
                     print_example(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
 
