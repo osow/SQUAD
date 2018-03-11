@@ -173,10 +173,12 @@ class BasicAttn(object):
             sentinel_context = tf.get_variable("senc",shape = [1,self.key_vec_size],initializer = tf.contrib.layers.xavier_initializer())
             sentinel_context = tf.tile(sentinel_context,[tf.shape(values)[0],1])#tf.reshape(sentinel_context,[tf.shape(values)[0],1,self.key_vec_size])
             sentinel_context = tf.expand_dims(sentinel_context, 1)
+            
             sentinel_question = tf.get_variable("senq",shape = [1,self.value_vec_size],initializer = tf.contrib.layers.xavier_initializer())
             sentinel_question = tf.tile(sentinel_question,[tf.shape(values)[0],1])#tf.reshape(sentinel_context,[tf.shape(values)[0],1,self.key_vec_size])
             sentinel_question = tf.expand_dims(sentinel_question, 1)
-            sentinel_mask = tf.constant(0,shape=[1])
+            
+            sentinel_mask = tf.constant(1,shape=[1])
             sentinel_mask = tf.tile(sentinel_mask,[tf.shape(values)[0]])#tf.reshape(sentinel_context,[tf.shape(values)[0],1,self.key_vec_size])
             sentinel_mask = tf.expand_dims(sentinel_mask, 1)
             #sentinel_mask = tf.reshape(sentinel_mask,[tf.shape(values)[0],1])
@@ -199,15 +201,17 @@ class BasicAttn(object):
             #N = 601 = num keys (contexts)
             W = tf.get_variable("W",shape = [1,M,M], initializer = tf.contrib.layers.xavier_initializer())
             W = tf.tile(W,[tf.shape(values)[0],1,1])
-            b = tf.get_variable("b",shape = [1,self.key_vec_size],initializer = tf.contrib.layers.xavier_initializer())
+            b = tf.get_variable("b",shape = [1,self.key_vec_size],initializer = tf.zeros_initializer())
             pt1 = tf.matmul(W,full_values)
             pt2 = pt1 + b
             values_nonlinear = tf.tanh(pt2)
             values_nonlinear_t = tf.transpose(values_nonlinear, perm=[0, 2, 1])
             affinity = tf.matmul(full_keys,values_nonlinear_t) #shape (batch_size,N+1,M+1)
+            
             full_mask = tf.expand_dims(full_mask, 1) # shape (batch_size, 1, M+1)
             _, alpha_dist = masked_softmax(affinity, full_mask, 1) #shape (batch,N+1,M+1)
             a_output = tf.matmul(alpha_dist,values_nonlinear)
+            
             beta_dist = tf.nn.softmax(affinity,2)
             beta_dist_t = tf.transpose(beta_dist, perm=[0, 2, 1])
             b_output = tf.matmul(beta_dist_t,full_keys)
