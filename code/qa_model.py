@@ -23,6 +23,7 @@ import os
 import sys
 
 import numpy as np
+np.set_printoptions(threshold=np.inf)
 import tensorflow as tf
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.ops import embedding_ops
@@ -407,11 +408,12 @@ class QAModel(object):
 
                 # Optionally pretty-print
                 if print_to_screen:
-                    print "A_DIST"
-                    print a_dis.get_shape()
+                    print "A_DIST (context-to-question)"
+                    print a_dis.shape
                     print a_dis
-                    print "B_DIST"
-                    print s_dis.get_shape()
+                    print "B_DIST (question-to-context)"
+
+                    print s_dis.shape
                     print s_dis
                     print_example(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
 
