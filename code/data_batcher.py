@@ -92,6 +92,23 @@ def padded(token_batch, batch_pad=0):
     maxlen = max(map(lambda x: len(x), token_batch)) if batch_pad == 0 else batch_pad
     return map(lambda token_list: token_list + [PAD_ID] * (maxlen - len(token_list)), token_batch)
 
+def getCharId(token):
+    res = []
+    for batch in token:
+        wordlen = 10
+        alphabet = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','\"','\'','(',')','{','}','[',']','.',',','?','!',':',';','-','_','$','/']
+        ids = []
+        ct = 0
+        for char in token:
+            if (ct < wordlen):
+                if char in alphabet:
+                    ids.append(alphabet.index(char))
+                else: #UNK char, the id is one more than alphabet size
+                    ids.append(len(alphabet))
+            ct += 1
+        if len(ids) < wordlen:
+            ids = ids + [55]*(wordlen-len(ids))
+        res.append(ids)
 
 def refill_batches(batches, word2id, context_file, qn_file, ans_file, batch_size, context_len, question_len, discard_long):
     """
@@ -117,6 +134,7 @@ def refill_batches(batches, word2id, context_file, qn_file, ans_file, batch_size
         context_tokens, context_ids = sentence_to_token_ids(context_line, word2id)
         qn_tokens, qn_ids = sentence_to_token_ids(qn_line, word2id)
         ans_span = intstr_to_intlist(ans_line)
+
 
         # read the next line from each file
         context_line, qn_line, ans_line = context_file.readline(), qn_file.readline(), ans_file.readline()
@@ -197,6 +215,9 @@ def get_batch_generator(word2id, context_path, qn_path, ans_path, batch_size, co
         # Get next batch. These are all lists length batch_size
         (context_ids, context_tokens, qn_ids, qn_tokens, ans_span, ans_tokens) = batches.pop(0)
 
+        qn_char_ids = np.array([getCharId(token) for token in qn_tokens]) #shape (batch,qn_len,wordlen)
+        context_char_ids = np.array([getCharId(token) for token in qn_tokens])
+
         # Pad context_ids and qn_ids
         qn_ids = padded(qn_ids, question_len) # pad questions to length question_len
         context_ids = padded(context_ids, context_len) # pad contexts to length context_len
@@ -213,7 +234,7 @@ def get_batch_generator(word2id, context_path, qn_path, ans_path, batch_size, co
         ans_span = np.array(ans_span) # shape (batch_size, 2)
 
         # Make into a Batch object
-        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens, ans_span, ans_tokens)
+        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens, ans_span, ans_tokens, qn_char_ids,context_char_ids)
 
         yield batch
 

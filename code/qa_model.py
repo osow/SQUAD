@@ -54,12 +54,16 @@ class QAModel(object):
         self.id2word = id2word
         self.word2id = word2id
 
+        self.wordlen = 10
+
         # Add all parts of the graph
         with tf.variable_scope("QAModel", initializer=tf.contrib.layers.variance_scaling_initializer(factor=1.0, uniform=True)):
             self.add_placeholders()
             self.add_embedding_layer(emb_matrix)
             self.build_graph()
             self.add_loss()
+
+
 
         # Define trainable parameters, gradient, gradient norm, and clip by gradient norm
         params = tf.trainable_variables()
@@ -92,7 +96,8 @@ class QAModel(object):
         self.qn_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.question_len])
         self.qn_mask = tf.placeholder(tf.int32, shape=[None, self.FLAGS.question_len])
         self.ans_span = tf.placeholder(tf.int32, shape=[None, 2])
-
+        self.qn_char_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.question_len, self.wordlen])
+        self.context_char_ids = tf.placeholder(tf.int32, shape=[None, self.FLAGS.context_len, self.wordlen])
         # Add a placeholder to feed in the keep probability (for dropout).
         # This is necessary so that we can instruct the model to use dropout when training, but not when testing
         self.keep_prob = tf.placeholder_with_default(1.0, shape=())
@@ -107,15 +112,49 @@ class QAModel(object):
             The GloVe vectors, plus vectors for PAD and UNK.
         """
         with vs.variable_scope("embeddings"):
+            vocab_size = 56 #id 54 = unk, 55 = pad
+            dc = 20
+            f = 100
+            k = 5
+
 
             # Note: the embedding matrix is a tf.constant which means it's not a trainable parameter
             embedding_matrix = tf.constant(emb_matrix, dtype=tf.float32, name="emb_matrix") # shape (400002, embedding_size)
 
             # Get the word embeddings for the context and question,
             # using the placeholders self.context_ids and self.qn_ids
-            self.context_embs = embedding_ops.embedding_lookup(embedding_matrix, self.context_ids) # shape (batch_size, context_len, embedding_size)
-            self.qn_embs = embedding_ops.embedding_lookup(embedding_matrix, self.qn_ids) # shape (batch_size, question_len, embedding_size)
+            context_word_embs = embedding_ops.embedding_lookup(embedding_matrix, self.context_ids) # shape (batch_size, context_len, embedding_size)
+            qn_word_embs = embedding_ops.embedding_lookup(embedding_matrix, self.qn_ids) # shape (batch_size, question_len, embedding_size)
 
+
+            char_embedding_matrix = tf.get_variable(name="char_embed",shape=[vocab_size,dc],initializer = tf.contrib.layers.xavier_initializer())
+
+            #print self.qn_char_ids.shape
+            #qn_char_embs = embedding_ops.embedding_lookup(char_embedding_matrix, self.qn_char_ids)
+            #print qn_char_embs.get_shape()
+            #qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, filters = f, kernel_size = k,padding='same')
+            #print qn_hidden_states.get_shape()
+            #print o
+            char_embs_per_word = []
+            for i in range(self.qn_char_ids.shape[1]):
+                curr_word = self.qn_char_ids[:,i,:] #for this word
+                qn_char_embs = embedding_ops.embedding_lookup(char_embedding_matrix, curr_word)
+                qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, filters = f, kernel_size = k,padding='same')
+                char_embs_per_word.append(qn_hidden_states)
+            new_char_embs = tf.stack(char_embs_per_word,1)
+            maxPooled = tf.reduce_max(new_char_embs,axis=2)
+            self.qn_embs = tf.concat([qn_word_embs,maxPooled],2)
+
+            char_embs_per_word = []
+            for i in range(self.context_char_ids.shape[1]):
+                curr_word = self.context_char_ids[:,i,:] #for this word
+                qn_char_embs = embedding_ops.embedding_lookup(char_embedding_matrix, curr_word)
+                qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, filters = f, kernel_size = k,padding='same')
+                char_embs_per_word.append(qn_hidden_states)
+            new_char_embs = tf.stack(char_embs_per_word,1)
+            maxPooled = tf.reduce_max(new_char_embs,axis=2)  
+            self.context_embs = tf.concat([context_word_embs,maxPooled],2)
+            print self.context_embs.get_shape()
 
     def build_graph(self):
         """Builds the main part of the graph for the model, starting from the input embeddings to the final distributions for the answer span.
@@ -220,6 +259,8 @@ class QAModel(object):
         input_feed[self.qn_mask] = batch.qn_mask
         input_feed[self.ans_span] = batch.ans_span
         input_feed[self.keep_prob] = 1.0 - self.FLAGS.dropout # apply dropout
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids
 
         # output_feed contains the things we want to fetch.
         output_feed = [self.updates, self.summaries, self.loss, self.global_step, self.param_norm, self.gradient_norm]
@@ -251,6 +292,8 @@ class QAModel(object):
         input_feed[self.qn_ids] = batch.qn_ids
         input_feed[self.qn_mask] = batch.qn_mask
         input_feed[self.ans_span] = batch.ans_span
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
 
         output_feed = [self.loss]
@@ -276,6 +319,8 @@ class QAModel(object):
         input_feed[self.context_mask] = batch.context_mask
         input_feed[self.qn_ids] = batch.qn_ids
         input_feed[self.qn_mask] = batch.qn_mask
+        input_feed[self.qn_char_ids] = batch.qn_char_ids
+        input_feed[self.context_char_ids] = batch.context_char_ids        
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
 
         output_feed = [self.probdist_start, self.probdist_end,self.s_dist,self.a_dist]
