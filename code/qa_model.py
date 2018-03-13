@@ -393,7 +393,7 @@ class QAModel(object):
         return dev_loss
 
 
-    def check_f1_em(self, session, context_path, qn_path, ans_path, dataset, num_samples=100, print_to_screen=False):
+    def check_f1_em(self, session, context_path, qn_path, ans_path, dataset, num_samples=100, print_to_screen=False, experiment_name):
         """
         Sample from the provided (train/dev) set.
         For each sample, calculate F1 and EM score.
@@ -459,10 +459,10 @@ class QAModel(object):
                 if print_to_screen:
                     print "A_DIST (context-to-question)"
                     print a_dis.shape
-                    filename = "a_dis" + str(example_num)
+                    filename = "attn_dist/context-to-question" + "_" + experiment_name + "_" + str(example_num)
                     np.savetxt(filename,a_dis)
                     print "B_DIST (question-to-context)"
-                    filename = "b_dis" + str(example_num)
+                    filename = "attn_dist/question-to-context" + "_" + experiment_name + "_" +  str(example_num)
                     np.savetxt(filename,s_dis)
                     print s_dis.shape
                     print_example(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
