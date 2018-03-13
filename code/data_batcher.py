@@ -147,7 +147,7 @@ def refill_batches(batches, word2id, context_file, qn_file, ans_file, batch_size
 
         qn_char_ids = [getCharId(token) for token in qn_tokens] #shape (batch,qn_len,wordlen)
         
-        context_char_ids = [getCharId(token) for token in qn_tokens]
+        context_char_ids = [getCharId(token) for token in context_tokens]
         qn_char_ids = np.array(paddChars(qn_char_ids, question_len))
         context_char_ids = np.array(paddChars(context_char_ids,context_len))
         # read the next line from each file

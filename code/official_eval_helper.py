@@ -92,10 +92,11 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
 
 
         qn_char_ids = [getCharId(token) for token in qn_tokens] #shape (batch,qn_len,wordlen)
-        context_char_ids = [getCharId(token) for token in qn_tokens]
+        context_char_ids = [getCharId(token) for token in context_tokens]
         qn_char_ids = np.array(paddChars(qn_char_ids, question_len))
         context_char_ids = np.array(paddChars(context_char_ids,context_len))
-
+        print qn_char_ids
+        print context_char_ids
         # Truncate context_ids and qn_ids
         # Note: truncating context_ids may truncate the correct answer, meaning that it's impossible for your model to get the correct answer on this example!
         if len(qn_ids) > question_len:
@@ -162,7 +163,7 @@ def get_batch_generator(word2id, qn_uuid_data, context_token_data, qn_token_data
         context_mask = (context_ids != PAD_ID).astype(np.int32)
 
         # Make into a Batch object
-        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens=None, ans_span=None, ans_tokens=None,  qn_char_ids, context_char_ids, uuids=uuids)
+        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens=None, ans_span=None, ans_tokens=None,  qn_char_ids = qn_char_ids, context_char_ids =context_char_ids, uuids=uuids)
 
         yield batch
 
@@ -277,7 +278,7 @@ def generate_answers(session, model, word2id, qn_uuid_data, context_token_data, 
     for batch in get_batch_generator(word2id, qn_uuid_data, context_token_data, qn_token_data, model.FLAGS.batch_size, model.FLAGS.context_len, model.FLAGS.question_len):
 
         # Get the predicted spans
-        pred_start_batch, pred_end_batch = model.get_start_end_pos(session, batch)
+        pred_start_batch, pred_end_batch, s_dist_batch, a_dist_batch = model.get_start_end_pos(session, batch)
 
         # Convert pred_start_batch and pred_end_batch to lists length batch_size
         pred_start_batch = pred_start_batch.tolist()
