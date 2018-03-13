@@ -327,7 +327,8 @@ class QAModel(object):
         input_feed[self.qn_char_ids] = batch.qn_char_ids
         input_feed[self.context_char_ids] = batch.context_char_ids        
         # note you don't supply keep_prob here, so it will default to 1 i.e. no dropout
-
+        print batch.qn_char_ids
+        print batch.context_char_ids
         output_feed = [self.probdist_start, self.probdist_end,self.s_dist,self.a_dist]
         [probdist_start, probdist_end, s_dist,a_dist] = session.run(output_feed, input_feed)
         return probdist_start, probdist_end, s_dist, a_dist

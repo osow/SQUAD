@@ -93,6 +93,9 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
 
         qn_char_ids = [getCharId(token) for token in qn_tokens] #shape (batch,qn_len,wordlen)
         context_char_ids = [getCharId(token) for token in context_tokens]
+        print "HERE"
+        print qn_char_ids
+        print context_char_ids
         qn_char_ids = np.array(paddChars(qn_char_ids, question_len))
         context_char_ids = np.array(paddChars(context_char_ids,context_len))
         print qn_char_ids
