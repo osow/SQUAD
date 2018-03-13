@@ -139,22 +139,27 @@ class QAModel(object):
             for i in range(self.qn_char_ids.shape[1]):
                 curr_word = self.qn_char_ids[:,i,:] #for this word
                 qn_char_embs = embedding_ops.embedding_lookup(char_embedding_matrix, curr_word)
-                qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, filters = f, kernel_size = k,padding='same')
+                qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, name='qn_cnn',filters = f, kernel_size = k,padding='same',reuse=tf.AUTO_REUSE)
                 char_embs_per_word.append(qn_hidden_states)
             new_char_embs = tf.stack(char_embs_per_word,1)
             maxPooled = tf.reduce_max(new_char_embs,axis=2)
+            #print maxPooled.get_shape()
             self.qn_embs = tf.concat([qn_word_embs,maxPooled],2)
-
+            #print "here"
+            #qn_char_embs = embedding_ops.embedding_lookup(char_embedding_matrix, self.qn_char_ids)
+            #print qn_char_embs.get_shape()
+            #qn_hidden = tf.layers.conv1d(inputs = qn_char_embs, filters = f, kernel_size = k,padding='same')
             char_embs_per_word = []
             for i in range(self.context_char_ids.shape[1]):
                 curr_word = self.context_char_ids[:,i,:] #for this word
                 qn_char_embs = embedding_ops.embedding_lookup(char_embedding_matrix, curr_word)
-                qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, filters = f, kernel_size = k,padding='same')
+                qn_hidden_states = tf.layers.conv1d(inputs = qn_char_embs, name='context_cnn', filters = f, kernel_size = k,padding='same',reuse=tf.AUTO_REUSE)
                 char_embs_per_word.append(qn_hidden_states)
             new_char_embs = tf.stack(char_embs_per_word,1)
             maxPooled = tf.reduce_max(new_char_embs,axis=2)  
+            #print maxPooled.get_shape()
             self.context_embs = tf.concat([context_word_embs,maxPooled],2)
-            print self.context_embs.get_shape()
+            # print self.context_embs.get_shape()
 
     def build_graph(self):
         """Builds the main part of the graph for the model, starting from the input embeddings to the final distributions for the answer span.
