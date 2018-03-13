@@ -38,7 +38,29 @@ def readnext(x):
     else:
         return x.pop(0)
 
+def paddChars(char_ids, max_len):
+    wordlen = 10
+    padding = [55]*wordlen
+    return char_ids + [padding]*(max_len-len(char_ids))
 
+
+def getCharId(token):
+    res = []
+    wordlen = 10
+    alphabet = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','\"','\'','(',')','{','}','[',']','.',',','?','!',':',';','-','_','$','/']
+    ids = []
+    ct = 0
+    for char in token:
+        if (ct < wordlen):
+            if char in alphabet:
+                ids.append(alphabet.index(char))
+            else: #UNK char, the id is one more than alphabet size
+                ids.append(len(alphabet))
+        ct += 1
+    if len(ids) < wordlen:
+        ids = ids + [55]*(wordlen-len(ids)) #PAD char
+    return ids
+    return res
 
 def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_data, batch_size, context_len, question_len):
     """
@@ -68,6 +90,12 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
         context_ids = [word2id.get(w, UNK_ID) for w in context_tokens]
         qn_ids = [word2id.get(w, UNK_ID) for w in qn_tokens]
 
+
+        qn_char_ids = [getCharId(token) for token in qn_tokens] #shape (batch,qn_len,wordlen)
+        context_char_ids = [getCharId(token) for token in qn_tokens]
+        qn_char_ids = np.array(paddChars(qn_char_ids, question_len))
+        context_char_ids = np.array(paddChars(context_char_ids,context_len))
+
         # Truncate context_ids and qn_ids
         # Note: truncating context_ids may truncate the correct answer, meaning that it's impossible for your model to get the correct answer on this example!
         if len(qn_ids) > question_len:
@@ -76,7 +104,7 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
             context_ids = context_ids[:context_len]
 
         # Add to list of examples
-        examples.append((qn_uuid, context_tokens, context_ids, qn_ids))
+        examples.append((qn_uuid, context_tokens, context_ids, qn_ids, qn_char_ids, context_char_ids))
 
         # Stop if you've got a batch
         if len(examples) == batch_size:
@@ -87,9 +115,9 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
 
     # Make into batches
     for batch_start in xrange(0, len(examples), batch_size):
-        uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch = zip(*examples[batch_start:batch_start + batch_size])
+        uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch, qn_char_ids_batch, context_char_ids_batch = zip(*examples[batch_start:batch_start + batch_size])
 
-        batches.append((uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch))
+        batches.append((uuids_batch, context_tokens_batch, context_ids_batch, qn_ids_batch, qn_char_ids_batch, context_char_ids_batch))
 
     return
 
@@ -119,7 +147,7 @@ def get_batch_generator(word2id, qn_uuid_data, context_token_data, qn_token_data
             break
 
         # Get next batch. These are all lists length batch_size
-        (uuids, context_tokens, context_ids, qn_ids) = batches.pop(0)
+        (uuids, context_tokens, context_ids, qn_ids, qn_char_ids, context_char_ids) = batches.pop(0)
 
         # Pad context_ids and qn_ids
         qn_ids = padded(qn_ids, question_len) # pad questions to length question_len
@@ -134,7 +162,7 @@ def get_batch_generator(word2id, qn_uuid_data, context_token_data, qn_token_data
         context_mask = (context_ids != PAD_ID).astype(np.int32)
 
         # Make into a Batch object
-        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens=None, ans_span=None, ans_tokens=None, uuids=uuids)
+        batch = Batch(context_ids, context_mask, context_tokens, qn_ids, qn_mask, qn_tokens=None, ans_span=None, ans_tokens=None,  qn_char_ids, context_char_ids, uuids=uuids)
 
         yield batch
 
@@ -220,6 +248,7 @@ def get_json_data(data_filename):
     print "Finished preprocessing. Got %i examples from %s" % (data_size, data_filename)
 
     return qn_uuid_data, context_token_data, qn_token_data
+
 
 
 def generate_answers(session, model, word2id, qn_uuid_data, context_token_data, qn_token_data):
