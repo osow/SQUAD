@@ -393,7 +393,7 @@ class QAModel(object):
         return dev_loss
 
 
-    def check_f1_em(self, session, context_path, qn_path, ans_path, dataset, num_samples=100, print_to_screen=False, experiment_name):
+    def check_f1_em(self, session, context_path, qn_path, ans_path, dataset, experiment_name, num_samples=100, print_to_screen=False):
         """
         Sample from the provided (train/dev) set.
         For each sample, calculate F1 and EM score.
