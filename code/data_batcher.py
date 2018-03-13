@@ -166,6 +166,7 @@ def refill_batches(batches, word2id, context_file, qn_file, ans_file, batch_size
                 continue
             else: # truncate
                 qn_ids = qn_ids[:question_len]
+                qn_char_ids = qn_char_ids[:question_len]
 
         # discard or truncate too-long contexts
         if len(context_ids) > context_len:
@@ -173,6 +174,7 @@ def refill_batches(batches, word2id, context_file, qn_file, ans_file, batch_size
                 continue
             else: # truncate
                 context_ids = context_ids[:context_len]
+                context_char_ids = context_char_ids[:context_len]
 
         # add to examples
         examples.append((context_ids, context_tokens, qn_ids, qn_tokens, ans_span, ans_tokens, qn_char_ids,context_char_ids))
@@ -228,9 +230,6 @@ def get_batch_generator(word2id, context_path, qn_path, ans_path, batch_size, co
 
         # Get next batch. These are all lists length batch_size
         (context_ids, context_tokens, qn_ids, qn_tokens, ans_span, ans_tokens, qn_char_ids,context_char_ids) = batches.pop(0)
-
-        #print qn_char_ids
-        #print context_char_ids
 
         # Pad context_ids and qn_ids
         qn_ids = padded(qn_ids, question_len) # pad questions to length question_len
