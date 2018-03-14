@@ -332,33 +332,42 @@ class QAModel(object):
         """
         # Get start_dist and end_dist, both shape (batch_size, context_len)
         start_dist, end_dist, s_dist, a_dist = self.get_prob_dists(session, batch)
-        span_len = 22.5
-
-        sorted_start = np.flip(np.argsort(start_dist,axis = 1), axis = 1)
-        sorted_end = np.flip(np.argsort(end_dist,axis = 1), axis = 1)
+        #span_len = 22.5
+        start_pos = np.zeros((start_dist.shape[0]))
+        end_pos = np.zeros((start_dist.shape[0]))
+        for batch in range(start_dist.shape[0]):
+            start = start_dist[batch]
+            end = end_dist[batch]
+            comb_matrix = np.outer(start,end)
+            masked = np.triu(comb_matrix)
+            i,j = np.unravel_index(masked.argmax(),masked.shape)
+            start_pos[batch] = start_dist[i]
+            end_pos[batch] = end_dist[j]
+        #sorted_start = np.flip(np.argsort(start_dist,axis = 1), axis = 1)
+        #sorted_end = np.flip(np.argsort(end_dist,axis = 1), axis = 1)
 
         # Take argmax to get start_pos and end_post, both shape (batch_size)
-        start_pos = np.argmax(start_dist, axis=1)
-        end_pos = np.argmax(end_dist, axis=1)
+        #start_pos = np.argmax(start_dist, axis=1)
+        #end_pos = np.argmax(end_dist, axis=1)
 
-        for batch in range(sorted_start.shape[0]):
+        '''for batch in range(sorted_start.shape[0]):
             for i in range(sorted_start.shape[1]):
                 pointer_start = sorted_start[batch,i] #a given start point
                 diff = sorted_end[batch] - pointer_start #each point in diff is the differnet between start and that index
                 rel_to_max = span_len - diff #to keep diff less than span_len
-		diff = np.add(diff,-0.5)
+		        diff = np.add(diff,-0.5)
                 rel_to_max = np.add(rel_to_max,-0.5)
-		criteria = np.multiply(diff,rel_to_max) #find first nonnegative value here
+		        criteria = np.multiply(diff,rel_to_max) #find first nonnegative value here
                 res = np.where(criteria >= 0)
                 if res[0].shape[0] > 0:
                     print res
-		    start_pos[batch] = pointer_start
-		    j = res[0][0]
-		    #if len(res[0]) > 0: j = res[0][0]
+		            start_pos[batch] = pointer_start
+		            j = res[0][0]
+		            #if len(res[0]) > 0: j = res[0][0]
                     end_pos[batch] = sorted_end[batch][j]
                     break
                 #you want first value sorted_end[j] where 0 < diff[j] and 0 < rel_to_max[j]
-
+        '''
         return start_pos, end_pos, s_dist, a_dist
 
 
