@@ -42,7 +42,6 @@ class QAModel(object):
     def __init__(self, FLAGS, id2word, word2id, emb_matrix):
         """
         Initializes the QA model.
-
         Inputs:
           FLAGS: the flags passed in from main.py
           id2word: dictionary mapping word idx (int) to word (string)
@@ -106,7 +105,6 @@ class QAModel(object):
     def add_embedding_layer(self, emb_matrix):
         """
         Adds word embedding layer to the graph.
-
         Inputs:
           emb_matrix: shape (400002, embedding_size).
             The GloVe vectors, plus vectors for PAD and UNK.
@@ -163,7 +161,6 @@ class QAModel(object):
 
     def build_graph(self):
         """Builds the main part of the graph for the model, starting from the input embeddings to the final distributions for the answer span.
-
         Defines:
           self.logits_start, self.logits_end: Both tensors shape (batch_size, context_len).
             These are the logits (i.e. values that are fed into the softmax function) for the start and end distribution.
@@ -208,7 +205,6 @@ class QAModel(object):
     def add_loss(self):
         """
         Add loss computation to the graph.
-
         Uses:
           self.logits_start: shape (batch_size, context_len)
             IMPORTANT: Assumes that self.logits_start is masked (i.e. has -large in masked locations).
@@ -217,10 +213,8 @@ class QAModel(object):
             So you need to apply masking to the logits (by subtracting large
             number in the padding location) BEFORE you pass to the
             sparse_softmax_cross_entropy_with_logits function.
-
           self.ans_span: shape (batch_size, 2)
             Contains the gold start and end locations
-
         Defines:
           self.loss_start, self.loss_end, self.loss: all scalar tensors
         """
@@ -244,12 +238,10 @@ class QAModel(object):
     def run_train_iter(self, session, batch, summary_writer):
         """
         This performs a single training iteration (forward pass, loss computation, backprop, parameter update)
-
         Inputs:
           session: TensorFlow session
           batch: a Batch object
           summary_writer: for Tensorboard
-
         Returns:
           loss: The loss (averaged across the batch) for this batch.
           global_step: The current number of training iterations we've done
@@ -282,11 +274,9 @@ class QAModel(object):
     def get_loss(self, session, batch):
         """
         Run forward-pass only; get loss.
-
         Inputs:
           session: TensorFlow session
           batch: a Batch object
-
         Returns:
           loss: The loss (averaged across the batch) for this batch
         """
@@ -311,11 +301,9 @@ class QAModel(object):
     def get_prob_dists(self, session, batch):
         """
         Run forward-pass only; get probability distributions for start and end positions.
-
         Inputs:
           session: TensorFlow session
           batch: Batch object
-
         Returns:
           probdist_start and probdist_end: both shape (batch_size, context_len)
         """
@@ -335,21 +323,36 @@ class QAModel(object):
     def get_start_end_pos(self, session, batch):
         """
         Run forward-pass only; get the most likely answer span.
-
         Inputs:
           session: TensorFlow session
           batch: Batch object
-
         Returns:
           start_pos, end_pos: both numpy arrays shape (batch_size).
             The most likely start and end positions for each example in the batch.
         """
         # Get start_dist and end_dist, both shape (batch_size, context_len)
         start_dist, end_dist, s_dist, a_dist = self.get_prob_dists(session, batch)
+        span_len = 22.5
+
+        sorted_start = np.flip(np.sort(start_dist,axis = 1), axis = 1)
+        sorted_end = np.flip(np.sort(end_dist,axis = 1), axis = 1)
 
         # Take argmax to get start_pos and end_post, both shape (batch_size)
         start_pos = np.argmax(start_dist, axis=1)
         end_pos = np.argmax(end_dist, axis=1)
+
+        for batch in range(sorted_start.shape[0]):
+            for i in range(sorted_start.shape[1]):
+                pointer_start = sorted_start[batch,i] #a given start point
+                diff = sorted_end[batch] - pointer_start #each point in diff is the differnet between start and that index
+                rel_to_max = span_len - diff #to keep diff less than span_len
+                criteria = np.multiply(diff,rel_to_max) #find first nonnegative value here
+                res = np.where(criteria >= 0)
+                if res.shape[0] > 0:
+                    start_pos[batch] = pointer_start
+                    end_pos[batch] = sorted_end[batch][res[0][0]]
+                    break
+                #you want first value sorted_end[j] where 0 < diff[j] and 0 < rel_to_max[j]
 
         return start_pos, end_pos, s_dist, a_dist
 
@@ -357,11 +360,9 @@ class QAModel(object):
     def get_dev_loss(self, session, dev_context_path, dev_qn_path, dev_ans_path):
         """
         Get loss for entire dev set.
-
         Inputs:
           session: TensorFlow session
           dev_qn_path, dev_context_path, dev_ans_path: paths to the dev.{context/question/answer} data files
-
         Outputs:
           dev_loss: float. Average loss across the dev set.
         """
@@ -399,7 +400,6 @@ class QAModel(object):
         For each sample, calculate F1 and EM score.
         Return average F1 and EM score for all samples.
         Optionally pretty-print examples.
-
         Note: This function is not quite the same as the F1/EM numbers you get from "official_eval" mode.
         This function uses the pre-processed version of the e.g. dev set for speed,
         whereas "official_eval" mode uses the original JSON. Therefore:
@@ -408,14 +408,12 @@ class QAModel(object):
           2. Our preprocessed version of the dev set is missing some examples
             due to tokenization issues (see squad_preprocess.py).
             "official_eval" includes all examples.
-
         Inputs:
           session: TensorFlow session
           qn_path, context_path, ans_path: paths to {dev/train}.{question/context/answer} data files.
           dataset: string. Either "train" or "dev". Just for logging purposes.
           num_samples: int. How many samples to use. If num_samples=0 then do whole dataset.
           print_to_screen: if True, pretty-prints each example to screen
-
         Returns:
           F1 and EM: Scalars. The average across the sampled examples.
         """
@@ -485,7 +483,6 @@ class QAModel(object):
     def train(self, session, train_context_path, train_qn_path, train_ans_path, dev_qn_path, dev_context_path, dev_ans_path):
         """
         Main training loop.
-
         Inputs:
           session: TensorFlow session
           {train/dev}_{qn/context/ans}_path: paths to {train/dev}.{context/question/answer} data files
