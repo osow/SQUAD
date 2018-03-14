@@ -333,22 +333,33 @@ class QAModel(object):
         # Get start_dist and end_dist, both shape (batch_size, context_len)
         start_dist, end_dist, s_dist, a_dist = self.get_prob_dists(session, batch)
         #span_len = 22.5
-        start_pos = np.zeros((start_dist.shape[0]))
-        end_pos = np.zeros((start_dist.shape[0]))
+        start_pos = []
+        end_pos = []
         for batch in range(start_dist.shape[0]):
             start = start_dist[batch]
             end = end_dist[batch]
             comb_matrix = np.outer(start,end)
             masked = np.triu(comb_matrix)
             i,j = np.unravel_index(masked.argmax(),masked.shape)
-            start_pos[batch] = start_dist[i]
-            end_pos[batch] = end_dist[j]
-        #sorted_start = np.flip(np.argsort(start_dist,axis = 1), axis = 1)
+            #print i
+	    #print j
+	    start_pos.append(int(i))
+            end_pos.append(int(j))
+        #print start_pos.shape
+	#print start_pos
+	#print end_pos
+	start_pos = np.array(start_pos)
+	end_pos = np.array(end_pos)
+	#print start_pos
+	#print end_pos
+	#old = np.flip(np.argsort(start_dist,axis = 1), axis = 1)
         #sorted_end = np.flip(np.argsort(end_dist,axis = 1), axis = 1)
 
         # Take argmax to get start_pos and end_post, both shape (batch_size)
-        #start_pos = np.argmax(start_dist, axis=1)
-        #end_pos = np.argmax(end_dist, axis=1)
+        #old = np.argmax(start_dist, axis=1)
+        #print old
+	#print old.shape
+	#end_pos = np.argmax(end_dist, axis=1)
 
         '''for batch in range(sorted_start.shape[0]):
             for i in range(sorted_start.shape[1]):
