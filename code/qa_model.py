@@ -334,8 +334,8 @@ class QAModel(object):
         start_dist, end_dist, s_dist, a_dist = self.get_prob_dists(session, batch)
         span_len = 22.5
 
-        sorted_start = np.flip(np.sort(start_dist,axis = 1), axis = 1)
-        sorted_end = np.flip(np.sort(end_dist,axis = 1), axis = 1)
+        sorted_start = np.flip(np.argsort(start_dist,axis = 1), axis = 1)
+        sorted_end = np.flip(np.argsort(end_dist,axis = 1), axis = 1)
 
         # Take argmax to get start_pos and end_post, both shape (batch_size)
         start_pos = np.argmax(start_dist, axis=1)
@@ -346,11 +346,16 @@ class QAModel(object):
                 pointer_start = sorted_start[batch,i] #a given start point
                 diff = sorted_end[batch] - pointer_start #each point in diff is the differnet between start and that index
                 rel_to_max = span_len - diff #to keep diff less than span_len
-                criteria = np.multiply(diff,rel_to_max) #find first nonnegative value here
+		diff = np.add(diff,-0.5)
+                rel_to_max = np.add(rel_to_max,-0.5)
+		criteria = np.multiply(diff,rel_to_max) #find first nonnegative value here
                 res = np.where(criteria >= 0)
-                if res.shape[0] > 0:
-                    start_pos[batch] = pointer_start
-                    end_pos[batch] = sorted_end[batch][res[0][0]]
+                if res[0].shape[0] > 0:
+                    print res
+		    start_pos[batch] = pointer_start
+		    j = res[0][0]
+		    #if len(res[0]) > 0: j = res[0][0]
+                    end_pos[batch] = sorted_end[batch][j]
                     break
                 #you want first value sorted_end[j] where 0 < diff[j] and 0 < rel_to_max[j]
 
@@ -394,7 +399,7 @@ class QAModel(object):
         return dev_loss
 
 
-    def check_f1_em(self, session, context_path, qn_path, ans_path, dataset, experiment_name, num_samples=100, print_to_screen=False):
+    def check_f1_em(self, session, context_path, qn_path, ans_path, dataset, experiment_name="", num_samples=100, print_to_screen=False):
         """
         Sample from the provided (train/dev) set.
         For each sample, calculate F1 and EM score.
