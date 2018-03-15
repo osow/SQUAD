@@ -52,7 +52,7 @@ class QAModel(object):
         self.FLAGS = FLAGS
         self.id2word = id2word
         self.word2id = word2id
-
+        self.regularization_param = 0.001
         self.wordlen = 15
 
         # Add all parts of the graph
@@ -66,11 +66,12 @@ class QAModel(object):
 
         # Define trainable parameters, gradient, gradient norm, and clip by gradient norm
         params = tf.trainable_variables()
+        self.l2_loss = tf.add_n([ tf.nn.l2_loss(v) for v in params ]) * self.regularization_param
+        self.loss += self.l2_loss
         gradients = tf.gradients(self.loss, params)
         self.gradient_norm = tf.global_norm(gradients)
         clipped_gradients, _ = tf.clip_by_global_norm(gradients, FLAGS.max_gradient_norm)
         self.param_norm = tf.global_norm(params)
-
         # Define optimizer and updates
         # (updates is what you need to fetch in session.run to do a gradient update)
         self.global_step = tf.Variable(0, name="global_step", trainable=False)
@@ -260,15 +261,15 @@ class QAModel(object):
         input_feed[self.context_char_ids] = batch.context_char_ids
 
         # output_feed contains the things we want to fetch.
-        output_feed = [self.updates, self.summaries, self.loss, self.global_step, self.param_norm, self.gradient_norm]
+        output_feed = [self.updates, self.summaries, self.loss, self.global_step, self.param_norm, self.gradient_norm, self.l2_loss]
 
         # Run the model
-        [_, summaries, loss, global_step, param_norm, gradient_norm] = session.run(output_feed, input_feed)
+        [_, summaries, loss, global_step, param_norm, gradient_norm, l2_loss] = session.run(output_feed, input_feed)
 
         # All summaries in the graph are added to Tensorboard
         summary_writer.add_summary(summaries, global_step)
 
-        return loss, global_step, param_norm, gradient_norm
+        return loss, global_step, param_norm, gradient_norm, l2_loss
 
 
     def get_loss(self, session, batch):
@@ -546,9 +547,12 @@ class QAModel(object):
 
                 # Run training iteration
                 iter_tic = time.time()
-                loss, global_step, param_norm, grad_norm = self.run_train_iter(session, batch, summary_writer)
+                loss, global_step, param_norm, grad_norm, l2_loss = self.run_train_iter(session, batch, summary_writer)
+                
                 iter_toc = time.time()
                 iter_time = iter_toc - iter_tic
+
+
 
                 # Update exponentially-smoothed loss
                 if not exp_loss: # first iter
