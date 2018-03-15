@@ -96,14 +96,14 @@ def padded(token_batch, batch_pad=0):
     return map(lambda token_list: token_list + [PAD_ID] * (maxlen - len(token_list)), token_batch)
 
 def paddChars(char_ids, max_len):
-    wordlen = 10
+    wordlen = 15
     padding = [55]*wordlen
     return char_ids + [padding]*(max_len-len(char_ids))
 
 
 def getCharId(token):
     res = []
-    wordlen = 10
+    wordlen = 15
     alphabet = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','\"','\'','(',')','{','}','[',']','.',',','?','!',':',';','-','_','$','/']
     ids = []
     ct = 0

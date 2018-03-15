@@ -53,7 +53,7 @@ class QAModel(object):
         self.id2word = id2word
         self.word2id = word2id
 
-        self.wordlen = 10
+        self.wordlen = 15
 
         # Add all parts of the graph
         with tf.variable_scope("QAModel", initializer=tf.contrib.layers.variance_scaling_initializer(factor=1.0, uniform=True)):
