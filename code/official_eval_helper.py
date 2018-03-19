@@ -39,14 +39,14 @@ def readnext(x):
         return x.pop(0)
 
 def paddChars(char_ids, max_len):
-    wordlen = 10
+    wordlen = 15
     padding = [55]*wordlen
     return char_ids + [padding]*(max_len-len(char_ids))
 
 
 def getCharId(token):
     res = []
-    wordlen = 10
+    wordlen = 15
     alphabet = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','\"','\'','(',')','{','}','[',']','.',',','?','!',':',';','-','_','$','/']
     ids = []
     ct = 0
@@ -93,20 +93,23 @@ def refill_batches(batches, word2id, qn_uuid_data, context_token_data, qn_token_
 
         qn_char_ids = [getCharId(token) for token in qn_tokens] #shape (batch,qn_len,wordlen)
         context_char_ids = [getCharId(token) for token in context_tokens]
-        print "HERE"
-        print qn_char_ids
-        print context_char_ids
+        #print "HERE"
+        #print len(qn_char_ids)
+        #print len(context_char_ids)
         qn_char_ids = np.array(paddChars(qn_char_ids, question_len))
         context_char_ids = np.array(paddChars(context_char_ids,context_len))
-        print qn_char_ids
-        print context_char_ids
+        #print qn_char_ids.shape
+        #print context_char_ids.shape
         # Truncate context_ids and qn_ids
         # Note: truncating context_ids may truncate the correct answer, meaning that it's impossible for your model to get the correct answer on this example!
         if len(qn_ids) > question_len:
             qn_ids = qn_ids[:question_len]
+	    qn_char_ids = qn_char_ids[:question_len]
         if len(context_ids) > context_len:
             context_ids = context_ids[:context_len]
-
+	    context_char_ids =context_char_ids[:context_len]
+	#print qn_char_ids.shape
+	#print context_char_ids.shape
         # Add to list of examples
         examples.append((qn_uuid, context_tokens, context_ids, qn_ids, qn_char_ids, context_char_ids))
 

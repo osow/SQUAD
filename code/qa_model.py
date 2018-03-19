@@ -52,7 +52,7 @@ class QAModel(object):
         self.FLAGS = FLAGS
         self.id2word = id2word
         self.word2id = word2id
-        self.regularization_param = 0.001
+        self.regularization_param =0.0001# 0.0003
         self.wordlen = 15
 
         # Add all parts of the graph
@@ -67,8 +67,8 @@ class QAModel(object):
         # Define trainable parameters, gradient, gradient norm, and clip by gradient norm
         params = tf.trainable_variables()
         self.l2_loss = tf.add_n([ tf.nn.l2_loss(v) for v in params ]) * self.regularization_param
-        self.loss += self.l2_loss
-        gradients = tf.gradients(self.loss, params)
+        #self.loss += self.l2_loss
+        gradients = tf.gradients(self.loss+self.l2_loss, params)
         self.gradient_norm = tf.global_norm(gradients)
         clipped_gradients, _ = tf.clip_by_global_norm(gradients, FLAGS.max_gradient_norm)
         self.param_norm = tf.global_norm(params)
